@@ -1,8 +1,11 @@
-import { ReviewReport } from '../types/report-types';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { ReviewReport } from '../types/report-types.js';
 
 /**
  * Report Generator
  * Converts ReviewReport to various output formats (Markdown, HTML, JSON)
+ * and writes them to the reports directory.
  */
 export class ReportGenerator {
   /**
@@ -73,7 +76,7 @@ ${formattedRecs || 'No recommendations at this time.'}
 
 ## 📁 File Details
 
-${formattedFiles}
+${formattedFiles || 'No files were reviewed.'}
 
 ---
 
@@ -100,7 +103,7 @@ ${formattedFiles}
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Code Review Report</title>
+  <title>Code Review Report - ${report.pullRequest.owner}/${report.pullRequest.repo}#${report.pullRequest.number}</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -141,7 +144,12 @@ ${formattedFiles}
 </head>
 <body>
   <h1>🔍 Code Review Report</h1>
-  
+
+  <p>
+    <strong>Pull Request:</strong>
+    ${report.pullRequest.owner}/${report.pullRequest.repo}#${report.pullRequest.number}
+  </p>
+
   <div class="summary">
     <div class="metric">
       <div class="metric-value">${summary.overallScore}</div>
@@ -180,5 +188,41 @@ ${formattedFiles}
    */
   generateJSONReport(report: ReviewReport): string {
     return JSON.stringify(report, null, 2);
+  }
+
+  /**
+   * Write JSON, Markdown and HTML reports to disk.
+   */
+  async generateReports(
+    report: ReviewReport,
+    outputDirectory = 'reports'
+  ): Promise<string[]> {
+    const directory = path.resolve(outputDirectory);
+
+    await fs.mkdir(directory, { recursive: true });
+
+    const baseName =
+      `${report.pullRequest.owner}-${report.pullRequest.repo}-pr-${report.pullRequest.number}`;
+
+    const files = [
+      {
+        path: path.join(directory, `${baseName}.json`),
+        content: this.generateJSONReport(report)
+      },
+      {
+        path: path.join(directory, `${baseName}.md`),
+        content: this.generateMarkdownReport(report)
+      },
+      {
+        path: path.join(directory, `${baseName}.html`),
+        content: this.generateHTMLReport(report)
+      }
+    ];
+
+    await Promise.all(
+      files.map(file => fs.writeFile(file.path, file.content, 'utf8'))
+    );
+
+    return files.map(file => file.path);
   }
 }

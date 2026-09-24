@@ -4,7 +4,7 @@ import {
   CodeQualityResultSchema,
   TestCoverageResultSchema,
   RefactoringSuggestionSchema
-} from './analysis-results';
+} from './analysis-results.js';
 
 /**
  * Complete Review Report Schema
@@ -24,7 +24,7 @@ export const ReviewReportSchema = z.object({
   })),
   summary: z.object({
     totalFiles: z.number(),
-    overallScore: z.number(),
+    overallScore: z.number().min(0).max(100),
     criticalIssues: z.number(),
     highPriorityTests: z.number(),
     refactoringOpportunities: z.number()
